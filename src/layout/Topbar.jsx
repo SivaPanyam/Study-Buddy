@@ -2,11 +2,13 @@ import React, { useState } from 'react';
 import { Search, Bell, User, Trophy, X, Palette } from 'lucide-react';
 import { useStreak } from '../hooks/useStreak';
 import { useTheme } from '../context/ThemeContext';
+import { useAuth } from '../context/AuthContext';
 import clsx from 'clsx';
 
 const Topbar = () => {
     const { streak } = useStreak();
     const { theme, setTheme } = useTheme();
+    const { user, userProfile } = useAuth();
     const [showNotifications, setShowNotifications] = useState(false);
     const [notifications, setNotifications] = useState([
         { id: 1, title: "Daily Quiz Ready", message: "Test your knowledge on today's topics!", time: "2m ago", unread: true },
@@ -97,8 +99,7 @@ const Topbar = () => {
                         <User className="w-4 h-4 text-text-secondary" />
                     </div>
                     <div className="hidden md:block text-text">
-                        <p className="text-sm font-medium">Student User</p>
-                        <p className="text-xs text-text-muted">Class 12-A</p>
+                        <p className="text-sm font-medium">{userProfile?.name || user?.email || 'User'}</p>
                     </div>
                 </div>
             </div>

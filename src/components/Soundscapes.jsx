@@ -17,25 +17,28 @@ const Soundscapes = () => {
     const audioRef = useRef(new Audio());
 
     useEffect(() => {
-        audioRef.current.loop = true;
+        const audio = audioRef.current;
+        audio.loop = true;
         return () => {
-            audioRef.current.pause();
-            audioRef.current.src = "";
+            audio.pause();
+            audio.src = "";
         };
     }, []);
 
     useEffect(() => {
+        const audio = audioRef.current;
+
         if (activeSound) {
-            if (audioRef.current.src !== activeSound.url) {
-                audioRef.current.src = activeSound.url;
+            if (audio.src !== activeSound.url) {
+                audio.src = activeSound.url;
             }
             if (isPlaying) {
-                audioRef.current.play().catch(e => console.error("Audio play error", e));
+                audio.play().catch(e => console.error("Audio play error", e));
             } else {
-                audioRef.current.pause();
+                audio.pause();
             }
         } else {
-            audioRef.current.pause();
+            audio.pause();
         }
     }, [activeSound, isPlaying]);
 

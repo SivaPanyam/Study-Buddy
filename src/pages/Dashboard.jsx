@@ -1,12 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useStreak } from '../hooks/useStreak';
-import { useGamification } from '../hooks/useGamification';
+import { useGamificationContext } from '../context/GamificationContext';
 import Card from '../components/Card';
 import { BrainCircuit, Calendar as CalendarIcon, CheckCircle2, Target, Trophy, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import clsx from 'clsx';
 import PomodoroTimer from '../components/PomodoroTimer';
-import { getToday, isSameDay } from '../utils/dateUtils';
+import { getToday } from '../utils/dateUtils';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 
@@ -88,9 +88,9 @@ const Calendar = ({ history = [] }) => {
 };
 
 const Dashboard = () => {
-    const { user } = useAuth();
-    const { streak, history, markTaskCompleted } = useStreak();
-    const { xp, level, XP_PER_LEVEL } = useGamification();
+    const { user, loading: authLoading } = useAuth();
+    const { history, markTaskCompleted } = useStreak();
+    const { xp, level, XP_PER_LEVEL, isLoading: gamificationLoading, xpInCurrentLevel, xpNeededForLevelUp, levelProgress } = useGamificationContext();
     const [plans, setPlans] = useState([]);
     const [activePlanIndex, setActivePlanIndex] = useState(0);
     const [stats, setStats] = useState({
@@ -101,48 +101,7 @@ const Dashboard = () => {
         activeDay: null
     });
 
-    const fetchPlans = async () => {
-        if (user) {
-            try {
-                const { data, error } = await supabase
-                    .from('study_plans')
-                    .select('*')
-                    .order('created_at', { ascending: false })
-                    .limit(3);
-                if (error) throw error;
-                if (data) {
-                    setPlans(data);
-                    if (data.length > 0) {
-                        const activeIndex = activePlanIndex < data.length ? activePlanIndex : 0;
-                        calculateStats(data[activeIndex]);
-                    }
-                    return; // Ensure we don't fall back to localStorage if logged in
-                }
-            } catch (e) {
-                console.error("Dashboard Fetch Error:", e);
-            }
-        } else {
-            const savedPlans = localStorage.getItem('studyGoalPlans');
-            if (savedPlans) {
-                try {
-                    const parsed = JSON.parse(savedPlans);
-                    setPlans(parsed);
-                    if (parsed.length > 0) {
-                        const activeIndex = activePlanIndex < parsed.length ? activePlanIndex : 0;
-                        calculateStats(parsed[activeIndex]);
-                    }
-                } catch (e) {
-                    console.error("Failed to parse plans", e);
-                }
-            }
-        }
-    };
-
-    useEffect(() => {
-        fetchPlans();
-    }, [user, activePlanIndex]);
-
-    const calculateStats = (data) => {
+    const calculateStats = useCallback((data) => {
         if (!data || !data.weeks) return;
         let total = 0;
         let completed = 0;
@@ -174,7 +133,78 @@ const Dashboard = () => {
             progress: total > 0 ? Math.round((completed / total) * 100) : 0,
             activeDay: foundActiveDay
         });
-    };
+    }, []);
+
+    const fetchPlans = useCallback(async () => {
+        if (authLoading) return;
+
+        if (user) {
+            try {
+                const { data, error } = await supabase
+                    .from('study_plans')
+                    .select('*')
+                    .order('created_at', { ascending: false })
+                    .limit(3);
+                if (error) throw error;
+                if (data) {
+                    setPlans(data);
+                    if (data.length > 0) {
+                        const activeIndex = activePlanIndex < data.length ? activePlanIndex : 0;
+                        calculateStats(data[activeIndex]);
+                    }
+                    return; // Ensure we don't fall back to localStorage if logged in
+                }
+            } catch (e) {
+                console.error("Dashboard Fetch Error:", e);
+                setPlans([]);
+                setStats({
+                    totalTasks: 0,
+                    completedTasks: 0,
+                    progress: 0,
+                    currentWeek: 1,
+                    activeDay: null
+                });
+            }
+        } else {
+            const savedPlans = localStorage.getItem('studyGoalPlans');
+            if (savedPlans) {
+                try {
+                    const parsed = JSON.parse(savedPlans);
+                    setPlans(parsed);
+                    if (parsed.length > 0) {
+                        const activeIndex = activePlanIndex < parsed.length ? activePlanIndex : 0;
+                        calculateStats(parsed[activeIndex]);
+                    }
+                } catch (e) {
+                    console.error("Failed to parse plans", e);
+                }
+            } else {
+                setPlans([]);
+                setStats({
+                    totalTasks: 0,
+                    completedTasks: 0,
+                    progress: 0,
+                    currentWeek: 1,
+                    activeDay: null
+                });
+            }
+        }
+    }, [user, activePlanIndex, calculateStats, authLoading]);
+
+    useEffect(() => {
+        fetchPlans();
+    }, [fetchPlans]);
+
+    useEffect(() => {
+        const onPlansUpdated = () => fetchPlans();
+        window.addEventListener('plans-updated', onPlansUpdated);
+        window.addEventListener('storage', onPlansUpdated);
+
+        return () => {
+            window.removeEventListener('plans-updated', onPlansUpdated);
+            window.removeEventListener('storage', onPlansUpdated);
+        };
+    }, [fetchPlans]);
 
     const toggleTask = async (wIndex, dIndex, tIndex) => {
         if (plans.length === 0) return;
@@ -231,22 +261,50 @@ const Dashboard = () => {
                                 ))}
                             </div>
                         )}
-                        <div className="bg-card/50 p-3 rounded-xl border border-border flex items-center gap-4">
-                            <div className="flex flex-col items-end">
-                                <span className="text-xs font-bold text-text-secondary uppercase tracking-wider">Level {level}</span>
-                                <span className="text-lg font-bold text-text">{xp} <span className="text-xs text-text-muted">XP</span></span>
+                        <div className="bg-gradient-to-br from-purple-600/20 via-pink-600/20 to-red-600/20 p-6 rounded-2xl border border-purple-500/30 shadow-2xl backdrop-blur-sm">
+                            <div className="flex items-center justify-between mb-4">
+                                <div>
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <Trophy className="w-7 h-7 text-yellow-400 animate-bounce" />
+                                        <span className="text-xs font-bold text-purple-300 uppercase tracking-widest">Level {level}</span>
+                                    </div>
+                                    <span className="text-4xl font-black bg-gradient-to-r from-yellow-300 via-yellow-400 to-orange-500 bg-clip-text text-transparent">{xp}</span>
+                                    <span className="text-xs text-purple-300 font-semibold ml-1">XP</span>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-[10px] text-gray-400 mb-2">Next Level</p>
+                                    <p className="text-2xl font-bold text-white">{xpNeededForLevelUp}</p>
+                                    <p className="text-[9px] text-gray-500">XP needed</p>
+                                </div>
                             </div>
-                            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center shadow-lg shadow-orange-500/20">
-                                <Trophy className="w-6 h-6 text-white" />
+
+                            {/* Progress Bar */}
+                            <div className="space-y-2">
+                                <div className="w-full bg-gray-900/50 h-3 rounded-full overflow-hidden border border-purple-500/20 shadow-inner">
+                                    <div
+                                        className="bg-gradient-to-r from-yellow-400 via-orange-400 to-red-500 h-full transition-all duration-500 rounded-full shadow-lg shadow-orange-500/50"
+                                        style={{ width: `${levelProgress}%` }}
+                                    />
+                                </div>
+                                <div className="flex justify-between items-center text-[10px] text-gray-400 font-semibold">
+                                    <span>{xpInCurrentLevel} / {XP_PER_LEVEL} XP</span>
+                                    <span>{levelProgress.toFixed(0)}%</span>
+                                </div>
+                            </div>
+
+                            {/* Stats Grid */}
+                            <div className="grid grid-cols-2 gap-3 mt-4 pt-4 border-t border-purple-500/20">
+                                <div className="bg-blue-500/10 rounded-lg p-2 text-center border border-blue-500/20">
+                                    <p className="text-[10px] text-blue-300 font-semibold">TOTAL XP</p>
+                                    <p className="text-sm font-bold text-white">{xp}</p>
+                                </div>
+                                <div className="bg-green-500/10 rounded-lg p-2 text-center border border-green-500/20">
+                                    <p className="text-[10px] text-green-300 font-semibold">CURRENT LEVEL</p>
+                                    <p className="text-sm font-bold text-white">{level}</p>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
-                <div className="w-full bg-gray-800 h-1.5 rounded-full overflow-hidden mt-2">
-                    <div
-                        className="bg-gradient-to-r from-yellow-400 to-orange-500 h-full transition-all duration-500"
-                        style={{ width: `${(xp % XP_PER_LEVEL) / XP_PER_LEVEL * 100}%` }}
-                    />
                 </div>
             </header>
 

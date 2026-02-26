@@ -1,22 +1,42 @@
 
 import React, { useState, useEffect } from 'react';
 import { generateContent } from '../services/geminiService';
-import { useGamification } from '../hooks/useGamification';
+import { useGamificationContext } from '../context/GamificationContext';
 import { PenTool, Brain, Save, Loader2, GraduationCap, MessageSquare, Wand2 } from 'lucide-react';
+import { supabase } from '../lib/supabase';
+import { useAuth } from '../context/AuthContext';
 import clsx from 'clsx';
 
 const Notes = () => {
-    const [notes, setNotes] = useState(() => {
-        const saved = localStorage.getItem('studyNotes');
-        return saved ? JSON.parse(saved) : [];
-    });
+    const { user } = useAuth();
+    const [notes, setNotes] = useState([]);
     const [activeNote, setActiveNote] = useState(null);
     const [content, setContent] = useState('');
     const [title, setTitle] = useState('');
     const [aiResponse, setAiResponse] = useState(null);
     const [loading, setLoading] = useState(false);
     const [mode, setMode] = useState('write'); // 'write' or 'teach'
-    const { addXP } = useGamification();
+    const { addXP } = useGamificationContext();
+
+    // Load notes from Supabase or localStorage
+    useEffect(() => {
+        loadNotes();
+    }, [user]);
+
+    const loadNotes = async () => {
+        if (user?.id) {
+            const { data, error } = await supabase
+                .from('study_notes')
+                .select('*')
+                .eq('user_id', user.id)
+                .order('updated_at', { ascending: false });
+
+            if (data) setNotes(data);
+        } else {
+            const saved = localStorage.getItem('studyNotes');
+            setNotes(saved ? JSON.parse(saved) : []);
+        }
+    };
 
     useEffect(() => {
         if (activeNote) {
@@ -30,27 +50,48 @@ const Notes = () => {
         }
     }, [activeNote]);
 
-    const saveNote = () => {
+    const saveNote = async () => {
         if (!title.trim()) return;
 
-        const newNote = {
-            id: activeNote?.id || Date.now(),
-            title,
-            content,
-            updatedAt: new Date().toISOString()
-        };
+        if (user?.id) {
+            // Save to Supabase
+            const { error } = await supabase
+                .from('study_notes')
+                .upsert({
+                    id: activeNote?.id,
+                    user_id: user.id,
+                    title,
+                    content,
+                    updated_at: new Date()
+                });
 
-        let newNotes;
-        if (activeNote) {
-            newNotes = notes.map(n => n.id === activeNote.id ? newNote : n);
+            if (!error) {
+                await loadNotes();
+                const updated = notes.find(n => n.title === title);
+                setActiveNote(updated);
+            }
         } else {
-            newNotes = [newNote, ...notes];
-        }
+            // Save locally
+            const newNote = {
+                id: activeNote?.id || Date.now(),
+                title,
+                content,
+                updatedAt: new Date().toISOString()
+            };
 
-        setNotes(newNotes);
-        localStorage.setItem('studyNotes', JSON.stringify(newNotes));
-        setActiveNote(newNote);
-        addXP(10); // Simple save XP
+            let newNotes;
+            if (activeNote) {
+                newNotes = notes.map(n => n.id === activeNote.id ? newNote : n);
+            } else {
+                newNotes = [newNote, ...notes];
+            }
+
+            setNotes(newNotes);
+            localStorage.setItem('studyNotes', JSON.stringify(newNotes));
+            setActiveNote(newNote);
+        }
+        
+        addXP(25, 'Note Saved');
     };
 
     const handleAiAction = async (action) => {
@@ -60,10 +101,17 @@ const Notes = () => {
 
         try {
             let prompt = '';
+            let xpReward = 0;
+            let actionLabel = '';
+            
             if (action === 'simplify') {
                 prompt = `Simplify the following text for a 5-year-old:\n\n${content}`;
+                xpReward = 50;
+                actionLabel = 'Text Simplified';
             } else if (action === 'quiz') {
                 prompt = `Generate 3 quick quiz questions based on this text:\n\n${content}`;
+                xpReward = 60;
+                actionLabel = 'Quiz Generated';
             } else if (action === 'grade') {
                 prompt = `
                     I am trying to explain the concept of "${title}".
@@ -72,11 +120,16 @@ const Notes = () => {
                     My Explanation:
                     ${content}
                 `;
+                xpReward = 100;
+                actionLabel = 'Explanation Graded';
             }
 
             const response = await generateContent(prompt);
             setAiResponse(response);
-            if (action === 'grade') addXP(100); // Big XP for teaching
+            
+            if (xpReward > 0) {
+                addXP(xpReward, actionLabel);
+            }
         } catch (error) {
             console.error(error);
             setAiResponse("AI is having trouble right now. Try again.");

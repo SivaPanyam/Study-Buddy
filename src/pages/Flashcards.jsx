@@ -1,22 +1,55 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { generateJSON } from '../services/geminiService';
 import FlashcardDeck from '../components/FlashcardDeck';
 import { Copy, Loader2, Play, Plus, Book, MoreVertical, Trash2 } from 'lucide-react';
-import { useGamification } from '../hooks/useGamification';
+import { useGamificationContext } from '../context/GamificationContext';
+import { supabase } from '../lib/supabase';
+import { useAuth } from '../context/AuthContext';
 
 const Flashcards = () => {
-    const [decks, setDecks] = useState(() => {
-        const saved = localStorage.getItem('flashcardDecks');
-        return saved ? JSON.parse(saved) : [];
-    });
+    const { user } = useAuth();
+    const [decks, setDecks] = useState([]);
     const [activeDeck, setActiveDeck] = useState(null);
     const [loading, setLoading] = useState(false);
     const [topic, setTopic] = useState('');
-    const { addXP } = useGamification();
+    const { addXP } = useGamificationContext();
 
-    const saveDecks = (newDecks) => {
+    // Load decks from Supabase or localStorage
+    useEffect(() => {
+        loadDecks();
+    }, [user]);
+
+    const loadDecks = async () => {
+        if (user?.id) {
+            // Load from Supabase
+            const { data, error } = await supabase
+                .from('flashcard_decks')
+                .select('id, title, created_at, flashcard_cards(*)')
+                .eq('user_id', user.id)
+                .order('created_at', { ascending: false });
+
+            if (data) {
+                // Transform to match old format
+                const formattedDecks = data.map(d => ({
+                    id: d.id,
+                    title: d.title,
+                    cards: d.flashcard_cards || [],
+                    createdAt: d.created_at
+                }));
+                setDecks(formattedDecks);
+            }
+        } else {
+            // Fallback to localStorage
+            const saved = localStorage.getItem('flashcardDecks');
+            setDecks(saved ? JSON.parse(saved) : []);
+        }
+    };
+
+    const saveDecks = async (newDecks) => {
         setDecks(newDecks);
+        
+        // Save to localStorage as backup
         localStorage.setItem('flashcardDecks', JSON.stringify(newDecks));
     };
 
@@ -41,16 +74,43 @@ const Flashcards = () => {
 
             const data = await generateJSON(prompt);
 
-            const newDeck = {
-                id: Date.now(),
-                title: topic,
-                cards: data.cards,
-                createdAt: new Date().toISOString()
-            };
+            if (user?.id) {
+                // Save to Supabase
+                const { data: newDeck, error } = await supabase
+                    .from('flashcard_decks')
+                    .insert([{ user_id: user.id, title: topic }])
+                    .select()
+                    .single();
 
-            saveDecks([newDeck, ...decks]);
+                if (newDeck) {
+                    // Insert cards
+                    const cardsWithDeckId = data.cards.map((card, idx) => ({
+                        deck_id: newDeck.id,
+                        front: card.front,
+                        back: card.back,
+                        card_order: idx
+                    }));
+
+                    await supabase
+                        .from('flashcard_cards')
+                        .insert(cardsWithDeckId);
+
+                    // Reload decks
+                    await loadDecks();
+                }
+            } else {
+                // Save locally
+                const newDeck = {
+                    id: Date.now(),
+                    title: topic,
+                    cards: data.cards,
+                    createdAt: new Date().toISOString()
+                };
+                saveDecks([newDeck, ...decks]);
+            }
+            
             setTopic('');
-            addXP(20); // XP for creating material
+            addXP(20, 'Card Flipped');
         } catch (error) {
             console.error(error);
             alert("Failed to generate cards. Try again.");
@@ -59,8 +119,15 @@ const Flashcards = () => {
         }
     };
 
-    const deleteDeck = (id) => {
+    const deleteDeck = async (id) => {
         if (confirm("Delete this deck?")) {
+            if (user?.id) {
+                // Delete from Supabase
+                await supabase
+                    .from('flashcard_decks')
+                    .delete()
+                    .eq('id', id);
+            }
             saveDecks(decks.filter(d => d.id !== id));
         }
     };
@@ -82,7 +149,7 @@ const Flashcards = () => {
 
                 <FlashcardDeck
                     cards={activeDeck.cards}
-                    onComplete={() => addXP(50)} // XP for finishing a deck
+                    onComplete={() => addXP(50, 'Deck Completed')} // XP for finishing a deck
                 />
             </div>
         );

@@ -9,8 +9,10 @@ import Flashcards from './pages/Flashcards';
 import Notes from './pages/Notes';
 import Courses from './pages/Courses';
 import Settings from './pages/Settings';
+import XPNotification from './components/XPNotification';
 import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { GamificationProvider } from './context/GamificationContext';
 import Auth from './pages/Auth';
 
 const ProtectedRoute = ({ children }) => {
@@ -35,7 +37,9 @@ function App() {
   return (
     <AuthProvider>
       <ThemeProvider>
-        <BrowserRouter>
+        <GamificationProvider>
+          <XPNotification />
+          <BrowserRouter>
           <Routes>
             <Route path="/auth" element={<Auth />} />
             <Route
@@ -59,6 +63,7 @@ function App() {
             </Route>
           </Routes>
         </BrowserRouter>
+        </GamificationProvider>
       </ThemeProvider>
     </AuthProvider>
   );

@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useReducer, useEffect } from 'react';
 import { Play, Pause, RotateCcw, Coffee, Brain } from 'lucide-react';
 import { useGamification } from '../hooks/useGamification';
 import clsx from 'clsx';
@@ -7,40 +7,61 @@ import clsx from 'clsx';
 const WORK_TIME = 25 * 60; // 25 minutes
 const BREAK_TIME = 5 * 60; // 5 minutes
 
+const initialState = {
+    timeLeft: WORK_TIME,
+    isActive: false,
+    mode: 'work'
+};
+
+const timerReducer = (state, action) => {
+    switch (action.type) {
+        case 'toggle':
+            return { ...state, isActive: !state.isActive };
+        case 'reset':
+            return { ...state, isActive: false, timeLeft: state.mode === 'work' ? WORK_TIME : BREAK_TIME };
+        case 'tick':
+            if (!state.isActive || state.timeLeft <= 0) return state;
+            return { ...state, timeLeft: state.timeLeft - 1 };
+        case 'sessionComplete':
+            return state.mode === 'work'
+                ? { timeLeft: BREAK_TIME, isActive: false, mode: 'break' }
+                : { timeLeft: WORK_TIME, isActive: false, mode: 'work' };
+        default:
+            return state;
+    }
+};
+
 const PomodoroTimer = () => {
-    const [timeLeft, setTimeLeft] = useState(WORK_TIME);
-    const [isActive, setIsActive] = useState(false);
-    const [mode, setMode] = useState('work'); // 'work' or 'break'
+    const [state, dispatch] = useReducer(timerReducer, initialState);
+    const { timeLeft, isActive, mode } = state;
     const { addXP } = useGamification();
 
     useEffect(() => {
-        let interval = null;
-        if (isActive && timeLeft > 0) {
-            interval = setInterval(() => {
-                setTimeLeft(timeLeft - 1);
-            }, 1000);
-        } else if (timeLeft === 0) {
-            setIsActive(false);
-            if (mode === 'work') {
-                addXP(50);
-                alert("Work session complete! +50 XP!");
-                setMode('break');
-                setTimeLeft(BREAK_TIME);
-            } else {
-                alert("Break over! Time to focus.");
-                setMode('work');
-                setTimeLeft(WORK_TIME);
-            }
-        }
+        if (!isActive || timeLeft <= 0) return;
+
+        const interval = setInterval(() => {
+            dispatch({ type: 'tick' });
+        }, 1000);
+
         return () => clearInterval(interval);
-    }, [isActive, timeLeft, mode, addXP]);
+    }, [isActive, timeLeft]);
 
-    const toggleTimer = () => setIsActive(!isActive);
+    useEffect(() => {
+        if (timeLeft !== 0) return;
 
-    const resetTimer = () => {
-        setIsActive(false);
-        setTimeLeft(mode === 'work' ? WORK_TIME : BREAK_TIME);
-    };
+        if (mode === 'work') {
+            addXP(50);
+            alert("Work session complete! +50 XP!");
+        } else {
+            alert("Break over! Time to focus.");
+        }
+
+        dispatch({ type: 'sessionComplete' });
+    }, [timeLeft, mode, addXP]);
+
+    const toggleTimer = () => dispatch({ type: 'toggle' });
+
+    const resetTimer = () => dispatch({ type: 'reset' });
 
     const formatTime = (seconds) => {
         const mins = Math.floor(seconds / 60);

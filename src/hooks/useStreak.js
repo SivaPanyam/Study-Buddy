@@ -1,52 +1,83 @@
 import { useState, useEffect } from 'react';
 import { getToday, differenceInDays } from '../utils/dateUtils';
+import { supabase } from '../lib/supabase';
+import { useAuth } from '../context/AuthContext';
 
 const STORAGE_KEY = 'studyStreak';
+const defaultStreakState = {
+    currentStreak: 0,
+    lastCompletionDate: null,
+    lastBreakDate: null,
+    history: []
+};
+
+const loadStreakData = () => {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (!stored) return defaultStreakState;
+
+    try {
+        const parsed = JSON.parse(stored);
+        return {
+            currentStreak: Number(parsed?.currentStreak) || 0,
+            lastCompletionDate: parsed?.lastCompletionDate || null,
+            lastBreakDate: parsed?.lastBreakDate || null,
+            history: Array.isArray(parsed?.history) ? parsed.history : []
+        };
+    } catch (e) {
+        console.error("Failed to parse streak", e);
+        return defaultStreakState;
+    }
+};
 
 export const useStreak = () => {
-    const [streakData, setStreakData] = useState({
-        currentStreak: 0,
-        lastCompletionDate: null,
-        lastBreakDate: null,
-        history: [] // Array of YYYY-MM-DD strings
-    });
+    const { user } = useAuth();
+    const [streakData, setStreakData] = useState(loadStreakData);
+    const [synced, setSynced] = useState(false);
 
+    // Load from Supabase on mount if user exists
     useEffect(() => {
-        const stored = localStorage.getItem(STORAGE_KEY);
-        if (stored) {
-            try {
-                const parsed = JSON.parse(stored);
-                // Validate/Recalculate streak on load (e.g. if user opens app after 3 days)
-                // However, we only update streak on *action* (completing a task) or *viewing*?
-                // Typically we show the stored streak, but if it's been days, it's visually "active" until they try to complete a task?
-                // Or checks on load? Let's check on load to show 0 if they missed it.
+        if (!user?.id || synced) return;
 
-                const today = getToday();
-                const lastDate = parsed.lastCompletionDate;
+        const fetchStreakData = async () => {
+            const { data, error } = await supabase
+                .from('user_streaks')
+                .select('*')
+                .eq('user_id', user.id)
+                .single();
 
-                if (lastDate) {
-                    const diff = differenceInDays(today, lastDate);
-
-                    // If diff is huge, streak is effectively 0, but we don't overwrite storage until next action?
-                    // Or we reset state display?
-                    if (diff > 1) {
-                        // Check break logic here or just display? 
-                        // If we just load, we might not want to destructively update storage just by visiting.
-                        // But for UI, if diff > 1 and (diff > 2 OR break used), effective streak is 0.
-                        // Let's keep strict state in storage.
-                    }
-                }
-
-                setStreakData(parsed);
-            } catch (e) {
-                console.error("Failed to parse streak", e);
+            if (data) {
+                setStreakData({
+                    currentStreak: data.current_streak || 0,
+                    lastCompletionDate: data.last_completion_date,
+                    lastBreakDate: null,
+                    history: data.history || []
+                });
             }
-        }
-    }, []);
+            setSynced(true);
+        };
 
-    const saveStreak = (data) => {
+        fetchStreakData();
+    }, [user, synced]);
+
+    const saveStreak = async (data) => {
         setStreakData(data);
         localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+
+        // Sync to Supabase
+        if (user?.id) {
+            const { error } = await supabase
+                .from('user_streaks')
+                .upsert({
+                    user_id: user.id,
+                    current_streak: data.currentStreak,
+                    longest_streak: Math.max(data.currentStreak, data.lastCompletionDate ? data.currentStreak : 0),
+                    last_completion_date: data.lastCompletionDate,
+                    history: data.history,
+                    updated_at: new Date()
+                }, { onConflict: 'user_id' });
+
+            if (error) console.error("Streak sync error:", error);
+        }
     };
 
     const markTaskCompleted = () => {

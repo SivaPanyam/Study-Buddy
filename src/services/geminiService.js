@@ -1,14 +1,27 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY?.trim();
+const MODEL_NAME = "gemini-2.5-flash";
 
 if (!API_KEY) {
     console.warn("VITE_GEMINI_API_KEY is not set in environment variables.");
 }
 
-const genAI = new GoogleGenerativeAI(API_KEY);
-const MODEL_NAME = "gemini-2.0-flash";
-const model = genAI.getGenerativeModel({ model: MODEL_NAME });
+let genAI = null;
+
+const getClient = () => {
+    if (!API_KEY) {
+        throw new Error("Gemini API Key is missing. Please add VITE_GEMINI_API_KEY to your environment variables.");
+    }
+
+    if (!genAI) {
+        genAI = new GoogleGenerativeAI(API_KEY);
+    }
+
+    return genAI;
+};
+
+const getModel = () => getClient().getGenerativeModel({ model: MODEL_NAME });
 
 /**
  * Helper to call Gemini with exponential backoff on 429
@@ -35,37 +48,65 @@ const callWithRetry = async (fn, maxRetries = 3, initialDelay = 1000) => {
     throw lastError;
 };
 
+const extractRetrySeconds = (message = "") => {
+    const retryInMatch = message.match(/retry in\s+([\d.]+)s/i);
+    if (retryInMatch?.[1]) return Math.ceil(Number(retryInMatch[1]));
+
+    const retryDelayMatch = message.match(/"retryDelay":"(\d+)s"/i);
+    if (retryDelayMatch?.[1]) return Number(retryDelayMatch[1]);
+
+    return null;
+};
+
+const normalizeGeminiError = (error) => {
+    const message = error?.message || error?.toString?.() || "Unknown Gemini API error.";
+    const lower = message.toLowerCase();
+
+    if (message.includes("429") || lower.includes("quota")) {
+        const retrySeconds = extractRetrySeconds(message);
+        if (retrySeconds) {
+            return `Gemini API quota reached. Please retry in about ${retrySeconds}s, or check API billing/quota settings.`;
+        }
+        return "Gemini API quota reached. Please retry shortly, or check API billing/quota settings.";
+    }
+
+    if (lower.includes("api key")) {
+        return "Gemini API key is missing or invalid. Set VITE_GEMINI_API_KEY in .env and restart the app.";
+    }
+
+    if (lower.includes("safety")) {
+        return "Content was blocked by Gemini safety filters. Try rephrasing the request.";
+    }
+
+    return message;
+};
+
 /**
  * Generates text content from a given prompt and optional image parts.
  */
 export const generateContent = async (prompt, imageParts = []) => {
     try {
-        if (!API_KEY) {
-            throw new Error("Gemini API Key is missing. Please add VITE_GEMINI_API_KEY to your environment variables.");
-        }
         console.log("Gemini: Generating content...");
 
+        const model = getModel();
         const result = await callWithRetry(() => model.generateContent([prompt, ...imageParts]));
         const response = await result.response;
         const text = response.text();
         return text;
     } catch (error) {
         handleGeminiError(error, "generateContent");
-        throw error;
+        throw new Error(normalizeGeminiError(error));
     }
 };
 
 /**
- * Generates valid JSON content from a given prompt.
+ * Generates valid JSON content from a given prompt and optional image parts.
  */
-export const generateJSON = async (prompt) => {
+export const generateJSON = async (prompt, imageParts = []) => {
     try {
-        if (!API_KEY) {
-            throw new Error("Gemini API Key is missing. Please add VITE_GEMINI_API_KEY to your environment variables.");
-        }
         console.log("Gemini: Generating JSON...");
 
-        const jsonModel = genAI.getGenerativeModel({
+        const jsonModel = getClient().getGenerativeModel({
             model: MODEL_NAME,
             generationConfig: {
                 responseMimeType: "application/json",
@@ -73,7 +114,7 @@ export const generateJSON = async (prompt) => {
             }
         });
 
-        const result = await callWithRetry(() => jsonModel.generateContent(prompt));
+        const result = await callWithRetry(() => jsonModel.generateContent([prompt, ...imageParts]));
         const response = await result.response;
         const text = response.text();
 
@@ -81,7 +122,7 @@ export const generateJSON = async (prompt) => {
 
         try {
             return JSON.parse(cleanedText);
-        } catch (parseError) {
+        } catch {
             console.error("JSON Parse Error. Cleaned text was:", cleanedText);
             // Attempt a fallback regex match if simple parsing fails
             const jsonMatch = text.match(/\{[\s\S]*\}/);
@@ -92,7 +133,7 @@ export const generateJSON = async (prompt) => {
         }
     } catch (error) {
         handleGeminiError(error, "generateJSON");
-        throw error;
+        throw new Error(normalizeGeminiError(error));
     }
 };
 
@@ -102,14 +143,7 @@ export const generateJSON = async (prompt) => {
 const handleGeminiError = (error, source) => {
     const errorMsg = error.message || error.toString();
     console.error(`Gemini API Error (${source}):`, error);
-
-    if (errorMsg.includes("429") || errorMsg.includes("quota")) {
-        alert("API Limit Reached: The study buddy is currently overwhelmed. Please wait a minute and try again.");
-    } else if (errorMsg.includes("API key")) {
-        alert("Configuration Error: The Gemini API Key is missing or invalid. Check your environment settings.");
-    } else if (errorMsg.includes("Safety")) {
-        alert("Content Blocked: The AI refused to generate this content due to safety filters.");
-    }
+    return errorMsg;
 };
 
 /**

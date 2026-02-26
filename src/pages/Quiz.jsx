@@ -1,15 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { generateJSON } from '../services/geminiService';
-import { BrainCircuit, CheckCircle, XCircle, Loader2, Play, RefreshCw, Trophy, Briefcase } from 'lucide-react';
+import { BrainCircuit, CheckCircle, Loader2, Play, RefreshCw, Trophy, Briefcase } from 'lucide-react';
 import clsx from 'clsx';
-import { getToday } from '../utils/dateUtils';
-import { useGamification } from '../hooks/useGamification';
+import { useGamificationContext } from '../context/GamificationContext';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 
 const Quiz = () => {
     const { user } = useAuth();
-    const { addXP } = useGamification();
+    const { addXP } = useGamificationContext();
     const [loading, setLoading] = useState(false);
     const [quiz, setQuiz] = useState(null);
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -150,7 +149,7 @@ const Quiz = () => {
         }
     };
 
-    const calculateScore = () => {
+    const calculateScore = async () => {
         let newScore = 0;
         quiz.questions.forEach((q, index) => {
             if (answers[index] === q.correct_answer) {
@@ -160,14 +159,51 @@ const Quiz = () => {
         setScore(newScore);
         setShowResults(true);
 
-        if (newScore === quiz.questions.length) {
-            addXP(20); // Bonus XP
-            alert("Perfect Score! You earned +20 XP!");
+        // Calculate XP based on performance
+        const totalQuestions = quiz.questions.length;
+        const scorePercentage = (newScore / totalQuestions) * 100;
+        let earnedXP = 0;
+        let reason = '';
+
+        if (scorePercentage === 100) {
+            earnedXP = 200; // Perfect Score
+            reason = 'Quiz Completed - 100%';
+        } else if (scorePercentage >= 90) {
+            earnedXP = 150; // A Grade
+            reason = 'Quiz Completed - 90%+';
+        } else if (scorePercentage >= 80) {
+            earnedXP = 120; // B Grade
+            reason = 'Quiz Completed - 80%+';
+        } else if (scorePercentage >= 70) {
+            earnedXP = 100; // C Grade
+            reason = 'Quiz Completed - 70%+';
+        } else if (scorePercentage >= 60) {
+            earnedXP = 75; // D Grade
+            reason = 'Quiz Completed - 60%+';
         } else {
-            addXP(10); // Participation XP
+            earnedXP = 50; // Participation
+            reason = 'Quiz Completed - Participation';
         }
 
-        // Save history
+        addXP(earnedXP, reason);
+
+        // Save to Supabase if user exists
+        if (user?.id) {
+            const { error } = await supabase
+                .from('quiz_attempts')
+                .insert([{
+                    user_id: user.id,
+                    topic: todaysTopic || "Custom Quiz",
+                    score: newScore,
+                    total_questions: quiz.questions.length,
+                    answers: answers,
+                    completed_at: new Date()
+                }]);
+
+            if (error) console.error("Quiz save error:", error);
+        }
+
+        // Save to localStorage as backup
         const history = JSON.parse(localStorage.getItem('quizHistory') || '[]');
         history.push({
             date: new Date().toISOString(),
