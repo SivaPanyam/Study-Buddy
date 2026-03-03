@@ -54,7 +54,7 @@ const Auth = () => {
                         } else {
                             // Successfully signed in, navigate to dashboard
                             setLoading(false);
-                            navigate('/');
+                            navigate('/app/dashboard');
                             return;
                         }
                     } catch (profileErr) {
@@ -70,7 +70,7 @@ const Auth = () => {
                 if (error) throw error;
                 setLoading(false);
                 // Navigation happens, profile will load in AuthContext
-                navigate('/');
+                navigate('/app/dashboard');
             }
         } catch (err) {
             setError(err.message);
