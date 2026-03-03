@@ -52,7 +52,7 @@ function App() {
                 </ProtectedRoute>
               }
             >
-              <Route index element={<Dashboard />} />
+              <Route index element={<Navigate to="dashboard" replace />} />
               <Route path="dashboard" element={<Dashboard />} />
               <Route path="goals" element={<Goals />} />
               <Route path="quiz" element={<Quiz />} />

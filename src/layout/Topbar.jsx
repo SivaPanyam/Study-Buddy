@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, Bell, User, Trophy, X, Palette } from 'lucide-react';
 import { useStreak } from '../hooks/useStreak';
 import { useTheme } from '../context/ThemeContext';
@@ -15,6 +15,14 @@ const Topbar = () => {
         { id: 2, title: "Goal Progress", message: "You're 80% through your weekly goal.", time: "1h ago", unread: false },
         { id: 3, title: "System Update", message: "New study tools added.", time: "1d ago", unread: false }
     ]);
+
+    // DEBUG: Log user and userProfile objects
+    useEffect(() => {
+        console.log("--- Topbar Debug ---");
+        console.log("Auth User:", user);
+        console.log("User Profile:", userProfile);
+        console.log("--------------------");
+    }, [user, userProfile]);
 
     const unreadCount = notifications.filter(n => n.unread).length;
 
@@ -95,11 +103,12 @@ const Topbar = () => {
                 <div className="h-8 w-[1px] bg-border"></div>
 
                 <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-hover flex items-center justify-center border border-border">
-                        <User className="w-4 h-4 text-text-secondary" />
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary-start to-primary-end flex items-center justify-center border border-primary-start/50">
+                        <User className="w-4 h-4 text-white" />
                     </div>
-                    <div className="hidden md:block text-text">
-                        <p className="text-sm font-medium">{userProfile?.name || user?.email || 'User'}</p>
+                    <div>
+                        <p className="text-sm font-bold text-text">{userProfile?.name || user?.email}</p>
+                        <p className="text-xs text-text-muted">Level {userProfile?.level || 1}</p>
                     </div>
                 </div>
             </div>

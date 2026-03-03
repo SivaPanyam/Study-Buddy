@@ -2,12 +2,110 @@ import React from 'react';
 import { Settings as SettingsIcon, Trash2, User, Save, Bell, Moon, Sun } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../context/AuthContext';
 import { wipeAllStorage } from '../utils/storageUtils';
 import clsx from 'clsx';
 
 const Settings = () => {
     const { theme, setTheme } = useTheme();
+    const { user, userProfile } = useAuth();
+    const [name, setName] = React.useState('');
+    const [email, setEmail] = React.useState('');
+    const [loading, setLoading] = React.useState(false);
 
+    // Fetch and refresh profile data
+    const refreshProfile = React.useCallback(async () => {
+        if (!user?.id) return;
+        
+        try {
+            const { data, error } = await supabase
+                .from('user_profiles')
+                .select('*')
+                .eq('user_id', user.id)
+                .single();
+            
+            if (error && error.code !== 'PGRST116') {
+                console.warn("Error fetching profile:", error);
+                return;
+            }
+
+            if (data) {
+                setName(data.name || '');
+                setEmail(data.email || '');
+            } else {
+                // Profile doesn't exist - create one
+                const newProfile = {
+                    user_id: user.id,
+                    name: user.user_metadata?.full_name || '',
+                    email: user.email || ''
+                };
+                
+                const { data: createdProfile, error: createError } = await supabase
+                    .from('user_profiles')
+                    .insert([newProfile])
+                    .select()
+                    .single();
+
+                if (!createError && createdProfile) {
+                    setName(createdProfile.name || '');
+                    setEmail(createdProfile.email || '');
+                }
+            }
+        } catch (err) {
+            console.error("Failed to refresh profile:", err);
+        }
+    }, [user?.id, user?.email, user?.user_metadata]);
+
+    React.useEffect(() => {
+        // Load profile from userProfile context
+        if (userProfile) {
+            setName(userProfile.name || '');
+            setEmail(userProfile.email || '');
+        } else if (user?.id) {
+            // Fallback: fetch directly if userProfile not available
+            refreshProfile();
+        }
+    }, [userProfile, user?.id, refreshProfile]);
+
+    // Listen for profile updates
+    React.useEffect(() => {
+        const handleProfileUpdated = () => {
+            refreshProfile();
+        };
+
+        window.addEventListener('profile-updated', handleProfileUpdated);
+        return () => window.removeEventListener('profile-updated', handleProfileUpdated);
+    }, [refreshProfile]);
+
+    const handleProfileUpdate = async () => {
+        if (!name.trim()) {
+            alert("Name cannot be empty.");
+            return;
+        }
+        setLoading(true);
+        try {
+            // Update user_profiles table
+            const { error: profileError } = await supabase
+                .from('user_profiles')
+                .update({ name: name.trim() })
+                .eq('user_id', user.id);
+
+            if (profileError) throw profileError;
+
+            // Optionally update auth user metadata if needed
+            // This is more complex and might not be required if you only use user_profiles
+            
+            alert("Profile updated successfully!");
+            // You might want to trigger a refresh of the userProfile in AuthContext
+            window.dispatchEvent(new Event('profile-updated'));
+
+        } catch (error) {
+            alert("Failed to update profile: " + error.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+    
     const handleReset = async () => {
         if (window.confirm("CRITICAL WARNING: This will delete ALL your goals, progress, streaks, and quiz history. This action cannot be undone.\n\nAre you sure?")) {
             try {
@@ -61,28 +159,34 @@ const Settings = () => {
                 </div>
 
                 <div className="grid gap-6 md:grid-cols-2">
-                    <div className="space-y-4">
+                    <div className="space-y-2">
                         <label className="text-sm font-medium text-gray-300">Display Name</label>
                         <input
                             type="text"
-                            defaultValue="Student"
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
                             className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-primary-start/50"
                         />
                     </div>
-                    <div className="space-y-4">
+                    <div className="space-y-2">
                         <label className="text-sm font-medium text-gray-300">Email Address</label>
                         <input
                             type="email"
-                            defaultValue="student@example.com"
-                            className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-primary-start/50"
+                            value={email}
+                            disabled
+                            className="w-full bg-gray-900/50 border border-gray-700 rounded-xl px-4 py-3 text-gray-400 focus:outline-none cursor-not-allowed"
                         />
                     </div>
                 </div>
 
                 <div className="mt-8 flex justify-end">
-                    <button className="bg-primary-start hover:bg-primary-end text-white px-6 py-2 rounded-xl font-medium transition-colors flex items-center gap-2">
-                        <Save className="w-4 h-4" />
-                        Save Changes
+                    <button 
+                        onClick={handleProfileUpdate}
+                        disabled={loading}
+                        className="bg-primary-start hover:bg-primary-end text-white px-6 py-2 rounded-xl font-medium transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        {loading ? <Save className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                        {loading ? 'Saving...' : 'Save Changes'}
                     </button>
                 </div>
             </section>

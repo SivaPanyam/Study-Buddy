@@ -166,11 +166,13 @@ const Notes = () => {
                 3. Any missing information
                 4. Suggestions for improvement
                 
+                Finally, provide a letter grade (A, B, C, D, or F) for the explanation.
+
                 Explanation to review:
                 ${content}
                 `;
                 xpReward = 100;
-                actionLabel = 'Explanation Reviewed';
+                actionLabel = 'Explanation Graded';
             }
 
             const response = await generateContent(prompt);
@@ -371,7 +373,7 @@ const Notes = () => {
                                         disabled={loading || !content}
                                         className="w-full bg-purple-600 hover:bg-purple-700 text-white p-3 rounded-xl text-sm font-bold transition-colors shadow-lg shadow-purple-600/20 disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
-                                        Review
+                                        Grade My Explanation
                                     </button>
                                 </div>
                             )}
