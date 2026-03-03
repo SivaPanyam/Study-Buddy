@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { generateContent } from '../services/geminiService';
 import { useGamificationContext } from '../context/GamificationContext';
-import { PenTool, Brain, Save, Loader2, GraduationCap, MessageSquare, Wand2 } from 'lucide-react';
+import { PenTool, Brain, Save, Loader2, GraduationCap, MessageSquare, Wand2, Trash2, Plus, Search } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import clsx from 'clsx';
@@ -16,6 +16,7 @@ const Notes = () => {
     const [aiResponse, setAiResponse] = useState(null);
     const [loading, setLoading] = useState(false);
     const [mode, setMode] = useState('write'); // 'write' or 'teach'
+    const [searchTerm, setSearchTerm] = useState('');
     const { addXP } = useGamificationContext();
 
     // Load notes from Supabase or localStorage
@@ -69,6 +70,7 @@ const Notes = () => {
                 await loadNotes();
                 const updated = notes.find(n => n.title === title);
                 setActiveNote(updated);
+                addXP(25, 'Note Saved');
             }
         } else {
             // Save locally
@@ -89,9 +91,35 @@ const Notes = () => {
             setNotes(newNotes);
             localStorage.setItem('studyNotes', JSON.stringify(newNotes));
             setActiveNote(newNote);
+            addXP(25, 'Note Saved');
         }
-        
-        addXP(25, 'Note Saved');
+    };
+
+    const deleteNote = async (noteId) => {
+        if (!window.confirm("Delete this note? This cannot be undone.")) return;
+
+        if (user?.id) {
+            // Delete from Supabase
+            const { error } = await supabase
+                .from('study_notes')
+                .delete()
+                .eq('id', noteId);
+
+            if (!error) {
+                await loadNotes();
+                if (activeNote?.id === noteId) {
+                    setActiveNote(null);
+                }
+            }
+        } else {
+            // Delete locally
+            const newNotes = notes.filter(n => n.id !== noteId);
+            setNotes(newNotes);
+            localStorage.setItem('studyNotes', JSON.stringify(newNotes));
+            if (activeNote?.id === noteId) {
+                setActiveNote(null);
+            }
+        }
     };
 
     const handleAiAction = async (action) => {
@@ -148,55 +176,83 @@ const Notes = () => {
                     </h1>
                     <p className="mt-2 text-gray-400">Write, learn, and teach with AI assistance.</p>
                 </div>
-                {activeNote && (
-                    <div className="flex gap-2">
-                        <button
-                            onClick={saveNote}
-                            className="bg-primary-start hover:bg-primary-end text-white px-4 py-2 rounded-xl flex items-center gap-2 font-medium transition-colors"
-                        >
-                            <Save className="w-4 h-4" /> Save
-                        </button>
-                        <button
-                            onClick={() => setActiveNote(null)}
-                            className="bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded-xl transition-colors"
-                        >
-                            Close
-                        </button>
-                    </div>
-                )}
             </header>
 
-            <div className="flex-1 grid grid-cols-1 lg:grid-cols-4 gap-6 min-h-0">
-                {/* Sidebar: Note List */}
-                {!activeNote && (
-                    <div className="lg:col-span-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="flex-1 grid grid-cols-1 lg:grid-cols-5 gap-6 min-h-0">
+                {/* Sidebar: Note List - Always Visible */}
+                <div className="lg:col-span-1 bg-gray-800/30 border border-gray-800 rounded-2xl p-4 flex flex-col gap-4 overflow-hidden">
+                    <div>
+                        <h2 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">My Notes ({notes.length})</h2>
                         <button
-                            onClick={() => setActiveNote({ id: null, title: 'New Note', content: '' })}
-                            className="h-32 border-2 border-dashed border-gray-700 rounded-2xl flex flex-col items-center justify-center text-gray-500 hover:text-white hover:border-primary-start transition-all"
+                            onClick={() => {
+                                setActiveNote({ id: null, title: 'New Note', content: '' });
+                                setSearchTerm('');
+                            }}
+                            className="w-full bg-primary-start hover:bg-primary-end text-white p-3 rounded-xl flex items-center justify-center gap-2 font-medium transition-colors mb-3"
                         >
-                            <PenTool className="w-8 h-8 mb-2" />
-                            Create New Note
+                            <Plus className="w-4 h-4" /> New Note
                         </button>
-                        {notes.map(note => (
+
+                        {/* Search Bar */}
+                        <div className="relative mb-3">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                            <input
+                                type="text"
+                                placeholder="Search notes..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full bg-gray-900 border border-gray-700 rounded-xl pl-9 pr-3 py-2 text-sm text-gray-200 focus:outline-none focus:ring-2 focus:ring-primary-start/50"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Notes List */}
+                    <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2">
+                        {notes.filter(note => 
+                            note.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                            note.content.toLowerCase().includes(searchTerm.toLowerCase())
+                        ).map(note => (
                             <div
                                 key={note.id}
                                 onClick={() => setActiveNote(note)}
-                                className="h-32 bg-gray-800/50 border border-gray-700 rounded-2xl p-4 hover:border-gray-500 cursor-pointer transition-all flex flex-col"
+                                className={clsx(
+                                    "p-3 rounded-xl cursor-pointer transition-all border text-left",
+                                    activeNote?.id === note.id
+                                        ? "bg-primary-start/20 border-primary-start text-white"
+                                        : "bg-gray-900/50 border-gray-700 text-gray-300 hover:border-gray-500"
+                                )}
                             >
-                                <h3 className="font-bold text-white mb-2 truncate">{note.title}</h3>
-                                <p className="text-xs text-gray-400 flex-1 overflow-hidden line-clamp-3">
-                                    {note.content}
+                                <h3 className="font-bold text-sm mb-1 truncate">{note.title}</h3>
+                                <p className="text-xs text-gray-500 line-clamp-2">
+                                    {note.content || "No content"}
                                 </p>
-                                <p className="text-xs text-gray-500 mt-2 text-right">
-                                    {new Date(note.updatedAt).toLocaleDateString()}
-                                </p>
+                                <div className="flex justify-between items-center mt-2">
+                                    <p className="text-xs text-gray-600">
+                                        {new Date(note.updated_at || note.updatedAt).toLocaleDateString()}
+                                    </p>
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            deleteNote(note.id);
+                                        }}
+                                        className="text-gray-500 hover:text-red-400 transition-colors"
+                                    >
+                                        <Trash2 className="w-3 h-3" />
+                                    </button>
+                                </div>
                             </div>
                         ))}
+
+                        {notes.length === 0 && (
+                            <div className="text-center text-gray-500 text-xs py-8">
+                                No notes yet. Create one to get started!
+                            </div>
+                        )}
                     </div>
-                )}
+                </div>
 
                 {/* Editor Area */}
-                {activeNote && (
+                {activeNote ? (
                     <>
                         <div className="lg:col-span-3 flex flex-col gap-4">
                             <div className="flex gap-2 mb-2 p-1 bg-gray-800/50 rounded-xl w-fit">
@@ -220,13 +276,29 @@ const Notes = () => {
                                 </button>
                             </div>
 
-                            <input
-                                type="text"
-                                value={title}
-                                onChange={(e) => setTitle(e.target.value)}
-                                placeholder="Note Title"
-                                className="bg-transparent text-2xl font-bold text-white border-none outline-none placeholder-gray-600 w-full"
-                            />
+                            <div className="flex gap-2">
+                                <input
+                                    type="text"
+                                    value={title}
+                                    onChange={(e) => setTitle(e.target.value)}
+                                    placeholder="Note Title"
+                                    className="flex-1 bg-transparent text-2xl font-bold text-white border-none outline-none placeholder-gray-600"
+                                />
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={saveNote}
+                                        className="bg-primary-start hover:bg-primary-end text-white px-4 py-2 rounded-xl flex items-center gap-2 font-medium transition-colors"
+                                    >
+                                        <Save className="w-4 h-4" /> Save
+                                    </button>
+                                    <button
+                                        onClick={() => setActiveNote(null)}
+                                        className="bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded-xl transition-colors"
+                                    >
+                                        Close
+                                    </button>
+                                </div>
+                            </div>
 
                             <textarea
                                 value={content}
@@ -240,7 +312,7 @@ const Notes = () => {
                         </div>
 
                         {/* AI Sidebar */}
-                        <div className="lg:col-span-1 bg-gray-800/30 border-l border-gray-800 p-4 flex flex-col gap-4">
+                        <div className="lg:col-span-1 bg-gray-800/30 border border-gray-800 rounded-2xl p-4 flex flex-col gap-4">
                             <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
                                 <Brain className="w-4 h-4" /> AI Tutor
                             </h3>
@@ -311,6 +383,11 @@ const Notes = () => {
                             </div>
                         </div>
                     </>
+                ) : (
+                    <div className="lg:col-span-4 flex flex-col items-center justify-center text-gray-500">
+                        <PenTool className="w-16 h-16 mb-4 opacity-20" />
+                        <p>Select a note from the sidebar or create a new one to get started.</p>
+                    </div>
                 )}
             </div>
         </div>
