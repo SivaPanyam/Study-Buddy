@@ -42,11 +42,10 @@ function App() {
           <XPNotification />
           <BrowserRouter>
           <Routes>
-            <Route path="/landing" element={<Landing />} />
+            <Route path="/" element={<Landing />} />
             <Route path="/auth" element={<Auth />} />
-            <Route path="/home" element={<Dashboard />} />
             <Route
-              path="/"
+              path="/app"
               element={
                 <ProtectedRoute>
                   <MainLayout />
@@ -54,6 +53,7 @@ function App() {
               }
             >
               <Route index element={<Dashboard />} />
+              <Route path="dashboard" element={<Dashboard />} />
               <Route path="goals" element={<Goals />} />
               <Route path="quiz" element={<Quiz />} />
               <Route path="documents" element={<Documents />} />
@@ -61,10 +61,8 @@ function App() {
               <Route path="notes" element={<Notes />} />
               <Route path="courses" element={<Courses />} />
               <Route path="settings" element={<Settings />} />
-
-              <Route path="*" element={<Navigate to="/" replace />} />
             </Route>
-            <Route path="*" element={<Navigate to="/landing" replace />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </BrowserRouter>
         </GamificationProvider>
