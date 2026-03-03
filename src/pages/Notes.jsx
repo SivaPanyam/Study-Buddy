@@ -273,10 +273,20 @@ const Notes = () => {
                                             <li>Review and simplify.</li>
                                         </ul>
                                     </div>
+                                    {title === 'New Note' && (
+                                        <div className="bg-orange-500/10 border border-orange-500/30 p-3 rounded-xl text-xs text-orange-300">
+                                            💡 <strong>Tip:</strong> Change the title to a concept name (e.g., "Photosynthesis", "Newton's Laws") for better grading!
+                                        </div>
+                                    )}
                                     <button
                                         onClick={() => handleAiAction('grade')}
-                                        disabled={loading || !content}
-                                        className="w-full bg-purple-600 hover:bg-purple-700 text-white p-3 rounded-xl text-sm font-bold transition-colors shadow-lg shadow-purple-600/20"
+                                        disabled={loading || !content || title === 'New Note'}
+                                        className={clsx(
+                                            "w-full p-3 rounded-xl text-sm font-bold transition-colors shadow-lg",
+                                            title === 'New Note' 
+                                                ? "bg-gray-600 text-gray-400 cursor-not-allowed opacity-50" 
+                                                : "bg-purple-600 hover:bg-purple-700 text-white shadow-purple-600/20"
+                                        )}
                                     >
                                         Grade My Explanation
                                     </button>
