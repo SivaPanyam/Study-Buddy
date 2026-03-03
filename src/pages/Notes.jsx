@@ -160,15 +160,17 @@ const Notes = () => {
                 xpReward = 60;
                 actionLabel = 'Quiz Generated';
             } else if (action === 'grade') {
-                prompt = `
-                    I am trying to explain the concept of "${title}".
-                    Review my explanation below. Grade it (A-F), correct any mistakes, and tell me what I missed.
-                    
-                    My Explanation:
-                    ${content}
+                prompt = `Please review the following explanation. Give constructive feedback on:
+                1. Clarity and structure
+                2. Depth of understanding
+                3. Any missing information
+                4. Suggestions for improvement
+                
+                Explanation to review:
+                ${content}
                 `;
                 xpReward = 100;
-                actionLabel = 'Explanation Graded';
+                actionLabel = 'Explanation Reviewed';
             }
 
             const response = await generateContent(prompt);
@@ -364,22 +366,12 @@ const Notes = () => {
                                             <li>Review and simplify.</li>
                                         </ul>
                                     </div>
-                                    {title === 'New Note' && (
-                                        <div className="bg-orange-500/10 border border-orange-500/30 p-3 rounded-xl text-xs text-orange-300">
-                                            💡 <strong>Tip:</strong> Change the title to a concept name (e.g., "Photosynthesis", "Newton's Laws") for better grading!
-                                        </div>
-                                    )}
                                     <button
                                         onClick={() => handleAiAction('grade')}
-                                        disabled={loading || !content || title === 'New Note'}
-                                        className={clsx(
-                                            "w-full p-3 rounded-xl text-sm font-bold transition-colors shadow-lg",
-                                            title === 'New Note' 
-                                                ? "bg-gray-600 text-gray-400 cursor-not-allowed opacity-50" 
-                                                : "bg-purple-600 hover:bg-purple-700 text-white shadow-purple-600/20"
-                                        )}
+                                        disabled={loading || !content}
+                                        className="w-full bg-purple-600 hover:bg-purple-700 text-white p-3 rounded-xl text-sm font-bold transition-colors shadow-lg shadow-purple-600/20 disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
-                                        Grade My Explanation
+                                        Review
                                     </button>
                                 </div>
                             )}
