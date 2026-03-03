@@ -53,7 +53,7 @@ const Calendar = ({ history = [] }) => {
     };
 
     return (
-        <div className="p-4 bg-hover/20 rounded-2xl border border-border">
+        <div className="p-4 bg-hover/20 rounded-2xl border border-border h-full flex flex-col">
             <div className="flex justify-between items-center mb-4">
                 <h3 className="font-semibold text-text">{monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}</h3>
                 <div className="flex gap-2">
@@ -66,11 +66,11 @@ const Calendar = ({ history = [] }) => {
                 </div>
             </div>
             <div className="grid grid-cols-7 gap-1 text-center mb-2">
-                {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(d => (
-                    <div key={d} className="text-xs font-bold text-gray-500 py-1">{d}</div>
+                {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, idx) => (
+                    <div key={`${d}-${idx}`} className="text-xs font-bold text-gray-500 py-1">{d}</div>
                 ))}
             </div>
-            <div className="grid grid-cols-7 gap-1">
+            <div className="grid grid-cols-7 gap-1 flex-1">
                 {generateDays()}
             </div>
             <div className="mt-4 flex items-center gap-4 text-xs text-gray-400 justify-center border-t border-gray-800 pt-3">
@@ -233,160 +233,109 @@ const Dashboard = () => {
     };
 
     return (
-        <div className="p-6 max-w-7xl mx-auto pb-20 space-y-8">
-            <header>
-                <div className="flex justify-between items-end">
-                    <div>
-                        <h1 className="text-3xl font-bold bg-clip-text text-transparent" style={{ backgroundImage: 'var(--theme-heading-gradient)' }}>
-                            Dashboard
-                        </h1>
-                        <p className="mt-2 text-text-secondary">Welcome back! Here's your study overview.</p>
-                    </div>
-                    <div className="flex flex-col items-end gap-3">
-                        {plans.length > 1 && (
-                            <div className="flex bg-gray-800/50 p-1 rounded-xl border border-gray-700">
-                                {plans.map((p, idx) => (
-                                    <button
-                                        key={p.id || idx}
-                                        onClick={() => setActivePlanIndex(idx)}
-                                        className={clsx(
-                                            "px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all",
-                                            activePlanIndex === idx
-                                                ? "bg-primary-start text-white shadow-lg"
-                                                : "text-gray-400 hover:text-white"
-                                        )}
-                                    >
-                                        Plan {idx + 1}
-                                    </button>
-                                ))}
-                            </div>
-                        )}
-                        <div className="bg-gradient-to-br from-purple-600/20 via-pink-600/20 to-red-600/20 p-6 rounded-2xl border border-purple-500/30 shadow-2xl backdrop-blur-sm">
-                            <div className="flex items-center justify-between mb-4">
-                                <div>
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <Trophy className="w-7 h-7 text-yellow-400 animate-bounce" />
-                                        <span className="text-xs font-bold text-purple-300 uppercase tracking-widest">Level {level}</span>
-                                    </div>
-                                    <span className="text-4xl font-black bg-gradient-to-r from-yellow-300 via-yellow-400 to-orange-500 bg-clip-text text-transparent">{xp}</span>
-                                    <span className="text-xs text-purple-300 font-semibold ml-1">XP</span>
-                                </div>
-                                <div className="text-right">
-                                    <p className="text-[10px] text-gray-400 mb-2">Next Level</p>
-                                    <p className="text-2xl font-bold text-white">{xpNeededForLevelUp}</p>
-                                    <p className="text-[9px] text-gray-500">XP needed</p>
-                                </div>
-                            </div>
-
-                            {/* Progress Bar */}
-                            <div className="space-y-2">
-                                <div className="w-full bg-gray-900/50 h-3 rounded-full overflow-hidden border border-purple-500/20 shadow-inner">
-                                    <div
-                                        className="bg-gradient-to-r from-yellow-400 via-orange-400 to-red-500 h-full transition-all duration-500 rounded-full shadow-lg shadow-orange-500/50"
-                                        style={{ width: `${levelProgress}%` }}
-                                    />
-                                </div>
-                                <div className="flex justify-between items-center text-[10px] text-gray-400 font-semibold">
-                                    <span>{xpInCurrentLevel} / {XP_PER_LEVEL} XP</span>
-                                    <span>{levelProgress.toFixed(0)}%</span>
-                                </div>
-                            </div>
-
-                            {/* Stats Grid */}
-                            <div className="grid grid-cols-2 gap-3 mt-4 pt-4 border-t border-purple-500/20">
-                                <div className="bg-blue-500/10 rounded-lg p-2 text-center border border-blue-500/20">
-                                    <p className="text-[10px] text-blue-300 font-semibold">TOTAL XP</p>
-                                    <p className="text-sm font-bold text-white">{xp}</p>
-                                </div>
-                                <div className="bg-green-500/10 rounded-lg p-2 text-center border border-green-500/20">
-                                    <p className="text-[10px] text-green-300 font-semibold">CURRENT LEVEL</p>
-                                    <p className="text-sm font-bold text-white">{level}</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </header>
-
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-                <div className="md:col-span-4 bg-card/50 border border-border p-4 rounded-2xl h-full">
-                    <div className="flex items-center gap-2 mb-2">
-                        <CalendarIcon className="w-4 h-4 text-primary-start" />
-                        <h2 className="text-sm font-bold text-text">Study Habit</h2>
-                    </div>
-                    <Calendar history={history} />
-                </div>
-
-                <Card
-                    className="md:col-span-8 bg-gradient-to-br from-blue-500/5 to-purple-500/5 hover:border-primary-start/30 transition-colors p-4 h-full"
-                >
-                    <div className="flex flex-col h-full justify-between gap-2">
-                        <div className="flex justify-between items-start">
+        <div className="p-6 max-w-7xl mx-auto">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Main Content Column */}
+                <div className="lg:col-span-2 space-y-6">
+                    {/* Header */}
+                    <header>
+                        <div className="flex justify-between items-center">
                             <div>
-                                <p className="text-xs font-medium text-primary-start mb-1 flex items-center gap-1">
-                                    <Target className="w-3 h-3" />
-                                    Active Goal
-                                </p>
-                                {plans[activePlanIndex] ? (
-                                    <>
-                                        <h2 className="text-lg font-bold text-text mb-1">{plans[activePlanIndex].title}</h2>
-                                        <p className="text-xs text-text-secondary line-clamp-1">{plans[activePlanIndex].description}</p>
-                                    </>
-                                ) : (
-                                    <div className="text-gray-400 italic text-sm">No active goal set. Start planning!</div>
-                                )}
+                                <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400">
+                                    Dashboard
+                                </h1>
+                                <p className="mt-1 text-gray-400">Welcome back! Here's your study overview.</p>
                             </div>
-
-                            {plans[activePlanIndex] && (
-                                <div className="text-right">
-                                    <span className="text-2xl font-bold text-text">{stats.progress}%</span>
-                                    <p className="text-[10px] text-text-muted uppercase">Completion</p>
+                            {plans.length > 1 && (
+                                <div className="flex bg-gray-800/50 p-1 rounded-xl border border-gray-700">
+                                    {plans.map((p, idx) => (
+                                        <button
+                                            key={p.id || idx}
+                                            onClick={() => setActivePlanIndex(idx)}
+                                            className={clsx(
+                                                "px-3 py-1.5 rounded-lg text-xs font-bold transition-all",
+                                                activePlanIndex === idx
+                                                    ? "bg-primary-start text-white shadow-lg"
+                                                    : "text-gray-400 hover:text-white"
+                                            )}
+                                        >
+                                            Plan {idx + 1}
+                                        </button>
+                                    ))}
                                 </div>
                             )}
                         </div>
+                    </header>
 
-                        {plans[activePlanIndex] ? (
-                            <div className="mt-2">
-                                <div className="w-full bg-gray-800 h-1.5 rounded-full overflow-hidden">
-                                    <div
-                                        className="bg-gradient-to-r from-primary-start to-primary-end h-full transition-all duration-500"
-                                        style={{ width: `${stats.progress}%` }}
-                                    />
+                    {/* Active Goal */}
+                    <Card
+                        className="bg-gradient-to-br from-blue-500/5 to-purple-500/5 hover:border-primary-start/30 transition-colors p-6"
+                    >
+                        <div className="flex flex-col h-full justify-between gap-4">
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <p className="text-sm font-medium text-primary-start mb-2 flex items-center gap-2">
+                                        <Target className="w-4 h-4" />
+                                        Active Goal
+                                    </p>
+                                    {plans[activePlanIndex] ? (
+                                        <>
+                                            <h2 className="text-xl font-bold text-white mb-1">{plans[activePlanIndex].title}</h2>
+                                            <p className="text-sm text-gray-400 line-clamp-1">{plans[activePlanIndex].description}</p>
+                                        </>
+                                    ) : (
+                                        <div className="text-gray-400 italic">No active goal set. Start planning!</div>
+                                    )}
                                 </div>
-                            </div>
-                        ) : (
-                            <Link to="/goals" className="self-start bg-primary-start text-white px-4 py-1.5 rounded-lg text-xs font-bold hover:opacity-90 transition-opacity">
-                                Create Goal
-                            </Link>
-                        )}
-                    </div>
-                </Card>
-            </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                <div className="lg:col-span-2">
-                    <Card title="Today's Focus" icon={CalendarIcon} className="h-full p-4">
+                                {plans[activePlanIndex] && (
+                                    <div className="text-right flex-shrink-0 ml-4">
+                                        <span className="text-3xl font-bold text-white">{stats.progress}%</span>
+                                        <p className="text-xs text-gray-500 uppercase">Completion</p>
+                                    </div>
+                                )}
+                            </div>
+
+                            {plans[activePlanIndex] ? (
+                                <div className="mt-2">
+                                    <div className="w-full bg-gray-800 h-2 rounded-full overflow-hidden">
+                                        <div
+                                            className="bg-gradient-to-r from-primary-start to-primary-end h-full transition-all duration-500"
+                                            style={{ width: `${stats.progress}%` }}
+                                        />
+                                    </div>
+                                </div>
+                            ) : (
+                                <Link to="/app/goals" className="self-start bg-primary-start text-white px-4 py-2 rounded-lg text-sm font-bold hover:opacity-90 transition-opacity">
+                                    Create Goal
+                                </Link>
+                            )}
+                        </div>
+                    </Card>
+
+                    {/* Today's Focus */}
+                    <Card title="Today's Focus" icon={CalendarIcon} className="h-full p-6">
                         {plans.length > 0 ? (
                             stats.activeDay ? (
                                 <div className="space-y-4">
-                                    <div className="bg-gray-800/30 rounded-lg p-3 border border-gray-800">
-                                        <div className="flex justify-between items-center mb-1">
-                                            <span className="text-[10px] font-bold text-primary-start uppercase tracking-wider">
+                                    <div className="bg-gray-800/30 rounded-lg p-4 border border-gray-800">
+                                        <div className="flex justify-between items-center mb-2">
+                                            <span className="text-xs font-bold text-primary-start uppercase tracking-wider">
                                                 Week {stats.activeDay.week} • {stats.activeDay.day}
                                             </span>
                                         </div>
-                                        <h3 className="text-base font-semibold text-text">{stats.activeDay.focus}</h3>
+                                        <h3 className="text-lg font-semibold text-white">{stats.activeDay.focus}</h3>
                                     </div>
 
-                                    <div className="space-y-2">
+                                    <div className="space-y-3">
                                         {stats.activeDay.tasks.map((task, idx) => (
                                             <div
                                                 key={idx}
                                                 onClick={() => toggleTask(stats.activeDay.wIndex, stats.activeDay.dIndex, idx)}
-                                                className="flex items-start gap-3 p-2 rounded-lg hover:bg-gray-800/50 transition-colors group cursor-pointer border border-transparent hover:border-gray-800"
+                                                className="flex items-start gap-4 p-3 rounded-lg hover:bg-gray-800/50 transition-colors group cursor-pointer border border-transparent hover:border-gray-800"
                                             >
                                                 <div className={clsx(
-                                                    "mt-0.5 w-4 h-4 rounded border flex items-center justify-center transition-all",
+                                                    "mt-1 w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all flex-shrink-0",
                                                     task.completed
                                                         ? "bg-primary-start border-primary-start"
                                                         : "border-gray-600 group-hover:border-primary-start"
@@ -394,7 +343,7 @@ const Dashboard = () => {
                                                     {task.completed && <CheckCircle2 className="w-3 h-3 text-white" />}
                                                 </div>
                                                 <p className={clsx(
-                                                    "text-sm flex-1 leading-snug transition-all",
+                                                    "text-sm flex-1 transition-all",
                                                     task.completed ? "text-gray-500 line-through" : "text-gray-300 group-hover:text-white"
                                                 )}>
                                                     {task.description}
@@ -403,62 +352,86 @@ const Dashboard = () => {
                                         ))}
                                     </div>
 
-                                    <div className="pt-2 flex justify-end">
-                                        <Link to="/goals" className="text-xs font-medium text-primary-start hover:text-white transition-colors flex items-center gap-1">
-                                            View Full Plan <ArrowRight className="w-3 h-3" />
+                                    <div className="pt-3 flex justify-end">
+                                        <Link to="/app/goals" className="text-sm font-medium text-primary-start hover:text-white transition-colors flex items-center gap-1">
+                                            View Full Plan <ArrowRight className="w-4 h-4" />
                                         </Link>
                                     </div>
                                 </div>
                             ) : (
-                                <div className="h-full flex flex-col items-center justify-center text-center py-6">
-                                    <CheckCircle2 className="w-8 h-8 text-green-500 mb-2" />
-                                    <h3 className="text-lg font-bold text-white">All Caught Up!</h3>
-                                    <p className="text-xs text-gray-400 mt-1">You've completed all scheduled tasks.</p>
+                                <div className="h-full flex flex-col items-center justify-center text-center py-10">
+                                    <CheckCircle2 className="w-12 h-12 text-green-500 mb-4" />
+                                    <h3 className="text-xl font-bold text-white">All Caught Up!</h3>
+                                    <p className="text-sm text-gray-400 mt-2">You've completed all scheduled tasks for today.</p>
                                 </div>
                             )
                         ) : (
-                            <div className="h-full flex flex-col items-center justify-center text-center py-6 text-gray-500">
-                                <p className="text-sm">No active plan found.</p>
+                            <div className="h-full flex flex-col items-center justify-center text-center py-10 text-gray-500">
+                                <p>No active plan found.</p>
                             </div>
                         )}
                     </Card>
                 </div>
 
-                <div className="space-y-4">
-                    <Card className="bg-gradient-to-br from-indigo-500/10 to-blue-500/10 border-indigo-500/20 p-4">
-                        <div className="flex flex-col h-full">
-                            <div className="flex items-center gap-3 mb-2">
-                                <div className="w-8 h-8 bg-indigo-500/20 rounded-lg flex items-center justify-center">
-                                    <BrainCircuit className="w-4 h-4 text-indigo-400" />
-                                </div>
-                                <div>
-                                    <h3 className="text-sm font-bold text-white">Daily Quiz</h3>
-                                    <p className="text-[10px] text-gray-400">Test: <strong>{stats.activeDay?.focus || "General"}</strong></p>
-                                </div>
-                            </div>
+                {/* Right Sidebar Column */}
+                <div className="lg:col-span-1 space-y-6">
+                    {/* Pomodoro Timer */}
+                    <PomodoroTimer />
 
-                            <Link
-                                to="/quiz"
-                                className="w-full bg-indigo-500 hover:bg-indigo-600 text-white py-2 rounded-lg font-bold text-center text-sm transition-colors mt-auto"
-                            >
-                                Start Quiz
-                            </Link>
+                    {/* Daily Quiz */}
+                    <Card className="bg-gradient-to-br from-indigo-500/10 to-blue-500/10 border-indigo-500/20 p-6">
+                        <div className="flex items-center gap-4 mb-4">
+                            <div className="w-12 h-12 bg-indigo-500/20 rounded-lg flex items-center justify-center">
+                                <BrainCircuit className="w-6 h-6 text-indigo-400" />
+                            </div>
+                            <div>
+                                <h3 className="font-bold text-white">Daily Quiz</h3>
+                                <p className="text-xs text-gray-400">Test: <strong>{stats.activeDay?.focus || "General"}</strong></p>
+                            </div>
                         </div>
+                        <Link
+                            to="/app/quiz"
+                            className="w-full bg-indigo-500 hover:bg-indigo-600 text-white py-3 rounded-lg font-bold text-center text-sm transition-colors"
+                        >
+                            Start Quiz
+                        </Link>
                     </Card>
 
-                    <div className="bg-card border border-gray-800 rounded-2xl p-4">
-                        <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Today's Progress</h4>
-                        <div className="flex justify-between items-center py-1 border-b border-gray-800">
-                            <span className="text-xs text-gray-300">Total Tasks</span>
-                            <span className="text-sm text-white font-bold">{stats.totalTasks}</span>
+                    {/* Gamification Card */}
+                    <div className="bg-gradient-to-br from-purple-600/20 via-pink-600/20 to-red-600/20 p-6 rounded-2xl border border-purple-500/30 shadow-2xl backdrop-blur-sm">
+                        <div className="flex items-center justify-between mb-4">
+                            <div>
+                                <div className="flex items-center gap-2 mb-2">
+                                    <Trophy className="w-7 h-7 text-yellow-400" />
+                                    <span className="text-sm font-bold text-purple-300 uppercase tracking-widest">Level {level}</span>
+                                </div>
+                                <span className="text-5xl font-black bg-gradient-to-r from-yellow-300 via-yellow-400 to-orange-500 bg-clip-text text-transparent">{xp}</span>
+                                <span className="text-sm text-purple-300 font-semibold ml-1">XP</span>
+                            </div>
+                            <div className="text-right">
+                                <p className="text-xs text-gray-400 mb-1">Next Level</p>
+                                <p className="text-3xl font-bold text-white">{xpNeededForLevelUp}</p>
+                                <p className="text-xs text-gray-500">XP needed</p>
+                            </div>
                         </div>
-                        <div className="flex justify-between items-center py-1 pt-2">
-                            <span className="text-xs text-gray-300">Completed</span>
-                            <span className="text-sm text-green-400 font-bold">{stats.completedTasks}</span>
+                        <div className="space-y-2">
+                            <div className="w-full bg-gray-900/50 h-3 rounded-full overflow-hidden border border-purple-500/20 shadow-inner">
+                                <div
+                                    className="bg-gradient-to-r from-yellow-400 via-orange-400 to-red-500 h-full transition-all duration-500 rounded-full"
+                                    style={{ width: `${levelProgress}%` }}
+                                />
+                            </div>
+                            <div className="flex justify-between items-center text-xs text-gray-400 font-semibold">
+                                <span>{xpInCurrentLevel} / {XP_PER_LEVEL} XP</span>
+                                <span>{levelProgress.toFixed(0)}%</span>
+                            </div>
                         </div>
                     </div>
 
-                    <PomodoroTimer />
+                    {/* Study Habit Calendar */}
+                    <Card title="Study Habit" icon={CalendarIcon} className="p-0">
+                         <Calendar history={history} />
+                    </Card>
                 </div>
             </div>
         </div>
