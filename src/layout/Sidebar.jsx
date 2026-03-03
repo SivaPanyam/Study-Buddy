@@ -7,14 +7,14 @@ import { useAuth } from '../context/AuthContext';
 const Sidebar = () => {
     const { signOut } = useAuth();
     const navItems = [
-        { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
-        { icon: Target, label: 'Goals', path: '/goals' },
-        { icon: BrainCircuit, label: 'Daily Quiz', path: '/quiz' },
-        { icon: FileText, label: 'Documents', path: '/documents' },
-        { icon: PenTool, label: 'Smart Notes', path: '/notes' },
-        { icon: Copy, label: 'Flashcards', path: '/flashcards' },
-        { icon: BookOpen, label: 'Courses', path: '/courses' },
-        { icon: Settings, label: 'Settings', path: '/settings' },
+        { icon: LayoutDashboard, label: 'Dashboard', path: '/app/dashboard' },
+        { icon: Target, label: 'Goals', path: '/app/goals' },
+        { icon: BrainCircuit, label: 'Daily Quiz', path: '/app/quiz' },
+        { icon: FileText, label: 'Documents', path: '/app/documents' },
+        { icon: PenTool, label: 'Smart Notes', path: '/app/notes' },
+        { icon: Copy, label: 'Flashcards', path: '/app/flashcards' },
+        { icon: BookOpen, label: 'Courses', path: '/app/courses' },
+        { icon: Settings, label: 'Settings', path: '/app/settings' },
     ];
 
     return (
