@@ -14,6 +14,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { GamificationProvider } from './context/GamificationContext';
 import Auth from './pages/Auth';
+import Landing from './pages/Landing';
 
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
@@ -41,7 +42,9 @@ function App() {
           <XPNotification />
           <BrowserRouter>
           <Routes>
+            <Route path="/landing" element={<Landing />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/home" element={<Dashboard />} />
             <Route
               path="/"
               element={
@@ -61,6 +64,7 @@ function App() {
 
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>
+            <Route path="*" element={<Navigate to="/landing" replace />} />
           </Routes>
         </BrowserRouter>
         </GamificationProvider>
