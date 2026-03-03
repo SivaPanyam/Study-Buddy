@@ -22,32 +22,58 @@ const Auth = () => {
                 if (!name.trim()) {
                     throw new Error("Please enter your name");
                 }
-                const { data, error } = await supabase.auth.signUp({ email, password });
+                const { data, error } = await supabase.auth.signUp({ 
+                    email, 
+                    password,
+                    options: {
+                        data: {
+                            full_name: name.trim()
+                        }
+                    }
+                });
                 if (error) throw error;
                 
-                // Save user profile with name (fire-and-forget to avoid delay)
+                // Create user profile
                 if (data.user) {
-                    supabase
-                        .from('user_profiles')
-                        .insert([
-                            {
-                                user_id: data.user.id,
-                                name: name.trim(),
-                                email: email,
-                            }
-                        ])
-                        .then()
-                        .catch((err) => console.error("Profile creation failed:", err));
+                    try {
+                        await supabase
+                            .from('user_profiles')
+                            .insert([
+                                {
+                                    user_id: data.user.id,
+                                    name: name.trim(),
+                                    email: email,
+                                }
+                            ]);
+                        
+                        // Auto sign in after signup
+                        const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+                        if (signInError) {
+                            console.warn("Auto sign-in after signup failed:", signInError);
+                            alert("Account created! Please sign in manually.");
+                        } else {
+                            // Successfully signed in, navigate to dashboard
+                            setLoading(false);
+                            navigate('/');
+                            return;
+                        }
+                    } catch (profileErr) {
+                        console.error("Profile creation failed:", profileErr);
+                    }
                 }
-                alert("Check your email for the confirmation link!");
+                
+                setLoading(false);
+                alert("Account created successfully! You can now sign in.");
             } else {
+                // Sign in - don't wait for profile, just navigate
                 const { error } = await supabase.auth.signInWithPassword({ email, password });
                 if (error) throw error;
+                setLoading(false);
+                // Navigation happens, profile will load in AuthContext
                 navigate('/');
             }
         } catch (err) {
             setError(err.message);
-        } finally {
             setLoading(false);
         }
     };
