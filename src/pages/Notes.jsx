@@ -52,46 +52,65 @@ const Notes = () => {
     }, [activeNote]);
 
     const saveNote = async () => {
-        if (!title.trim()) return;
+        if (!title.trim()) {
+            alert("Please enter a note title");
+            return;
+        }
 
-        if (user?.id) {
-            // Save to Supabase
-            const { error } = await supabase
-                .from('study_notes')
-                .upsert({
-                    id: activeNote?.id,
-                    user_id: user.id,
+        try {
+            if (user?.id) {
+                // Save to Supabase
+                const noteId = activeNote?.id || crypto.randomUUID();
+                
+                const { data, error } = await supabase
+                    .from('study_notes')
+                    .upsert({
+                        id: noteId,
+                        user_id: user.id,
+                        title,
+                        content,
+                        updated_at: new Date().toISOString()
+                    })
+                    .select()
+                    .single();
+
+                if (error) {
+                    console.error("Save error:", error);
+                    alert("Failed to save note: " + error.message);
+                    return;
+                }
+
+                await loadNotes();
+                if (data) {
+                    setActiveNote(data);
+                    addXP(25, 'Note Saved');
+                    alert("✅ Note saved successfully!");
+                }
+            } else {
+                // Save locally
+                const newNote = {
+                    id: activeNote?.id || Date.now(),
                     title,
                     content,
-                    updated_at: new Date()
-                });
+                    updatedAt: new Date().toISOString()
+                };
 
-            if (!error) {
-                await loadNotes();
-                const updated = notes.find(n => n.title === title);
-                setActiveNote(updated);
+                let newNotes;
+                if (activeNote) {
+                    newNotes = notes.map(n => n.id === activeNote.id ? newNote : n);
+                } else {
+                    newNotes = [newNote, ...notes];
+                }
+
+                setNotes(newNotes);
+                localStorage.setItem('studyNotes', JSON.stringify(newNotes));
+                setActiveNote(newNote);
                 addXP(25, 'Note Saved');
+                alert("✅ Note saved successfully!");
             }
-        } else {
-            // Save locally
-            const newNote = {
-                id: activeNote?.id || Date.now(),
-                title,
-                content,
-                updatedAt: new Date().toISOString()
-            };
-
-            let newNotes;
-            if (activeNote) {
-                newNotes = notes.map(n => n.id === activeNote.id ? newNote : n);
-            } else {
-                newNotes = [newNote, ...notes];
-            }
-
-            setNotes(newNotes);
-            localStorage.setItem('studyNotes', JSON.stringify(newNotes));
-            setActiveNote(newNote);
-            addXP(25, 'Note Saved');
+        } catch (err) {
+            console.error("Save exception:", err);
+            alert("Error saving note: " + err.message);
         }
     };
 
