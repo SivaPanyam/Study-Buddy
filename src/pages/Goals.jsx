@@ -359,12 +359,10 @@ const Goals = () => {
                 try {
                     console.log("Attempting to delete plan ID:", planToDelete.id, "for user:", user.id);
                     
-                    const { data, error } = await supabase
+                    const { error } = await supabase
                         .from('study_plans')
                         .delete()
                         .eq('id', planToDelete.id);
-                    
-                    console.log("Delete response - Data:", data, "Error:", error);
                     
                     if (error) {
                         console.error("Supabase delete error:", error);
@@ -376,37 +374,25 @@ const Goals = () => {
                     alert("Failed to delete plan: " + err.message);
                     return;
                 }
-            } else {
-                console.log("No user or plan ID, deleting locally only");
             }
 
             // Step 2: Update local state immediately
             const newPlans = plans.filter((_, i) => i !== activePlanIndex);
             setPlans(newPlans);
             
-            // Step 3: Clear ALL storage aggressively
-            localStorage.clear();
-            sessionStorage.clear();
+            // Step 3: Update localStorage with remaining plans
+            if (newPlans.length > 0) {
+                localStorage.setItem('studyGoalPlans', JSON.stringify(newPlans));
+            } else {
+                localStorage.removeItem('studyGoalPlans');
+                localStorage.removeItem('studyGoalPlan');
+            }
             
             // Step 4: Reset active plan index safely
             const newIndex = newPlans.length === 0 ? -1 : Math.min(activePlanIndex, newPlans.length - 1);
             setActivePlanIndex(newIndex);
 
-            // Step 5: Force browser cache clear and refetch
-            setTimeout(() => {
-                // Clear caches
-                if (typeof window !== 'undefined' && 'caches' in window) {
-                    caches.keys().then(names => {
-                        names.forEach(name => {
-                            caches.delete(name);
-                        });
-                    });
-                }
-                // Force refetch from server
-                fetchPlans();
-            }, 300);
-            
-            alert("Plan deleted successfully!");
+            console.log("Plan deleted successfully. Remaining plans:", newPlans.length);
         }
     };
 
