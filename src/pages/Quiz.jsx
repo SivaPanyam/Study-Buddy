@@ -215,6 +215,25 @@ const Quiz = () => {
         localStorage.setItem('quizHistory', JSON.stringify(history));
     };
 
+    const wrongAnswers = showResults && quiz
+        ? quiz.questions
+            .map((question, index) => {
+                const userAnswer = answers[index];
+                if (userAnswer === question.correct_answer) {
+                    return null;
+                }
+
+                return {
+                    index,
+                    question: question.question,
+                    userAnswer: userAnswer || 'No answer selected',
+                    correctAnswer: question.correct_answer,
+                    explanation: question.explanation
+                };
+            })
+            .filter(Boolean)
+        : [];
+
     if (!topics.length && !loading && !quiz) {
         return (
             <div className="p-6 max-w-3xl mx-auto text-center py-20">
@@ -403,6 +422,27 @@ const Quiz = () => {
                             {Math.round((score / quiz.questions.length) * 100)}% Accuracy
                         </p>
                     </div>
+
+                    {wrongAnswers.length > 0 && (
+                        <div className="max-w-2xl mx-auto text-left mb-8">
+                            <h3 className="text-lg font-bold text-white mb-4">Review Wrong Answers</h3>
+                            <div className="space-y-4">
+                                {wrongAnswers.map((item) => (
+                                    <div key={item.index} className="bg-gray-800/40 border border-gray-700 rounded-xl p-4">
+                                        <p className="text-sm text-gray-400 mb-2">Question {item.index + 1}</p>
+                                        <p className="text-white font-medium mb-3">{item.question}</p>
+                                        <div className="text-sm text-gray-300 space-y-1">
+                                            <p><span className="text-red-400 font-semibold">Your Answer:</span> {item.userAnswer}</p>
+                                            <p><span className="text-green-400 font-semibold">Correct Answer:</span> {item.correctAnswer}</p>
+                                            {item.explanation && (
+                                                <p><span className="text-blue-300 font-semibold">Why:</span> {item.explanation}</p>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
 
                     <button
                         onClick={() => generateQuiz()}

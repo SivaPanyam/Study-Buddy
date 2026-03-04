@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Bell, User, Trophy, X, Palette } from 'lucide-react';
+import { Bell, User, Trophy, X, Palette } from 'lucide-react';
 import { useStreak } from '../hooks/useStreak';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
@@ -35,16 +35,7 @@ const Topbar = () => {
     };
 
     return (
-        <header className="h-16 border-b border-border bg-card/50 backdrop-blur-xl flex items-center justify-between px-6 sticky top-0 z-20 text-text transition-colors duration-300">
-            <div className="relative w-96">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
-                <input
-                    type="text"
-                    placeholder="Search courses, assignments..."
-                    className="w-full bg-background border border-border rounded-full py-2 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary-start/50 transition-all text-text placeholder-text-muted"
-                />
-            </div>
-
+        <header className="h-16 border-b border-border bg-card/50 backdrop-blur-xl flex items-center justify-end px-6 sticky top-0 z-20 text-text transition-colors duration-300">
             <div className="flex items-center gap-6">
                 <div className="flex items-center gap-2 bg-gradient-to-r from-orange-500/10 to-red-500/10 px-3 py-1.5 rounded-full border border-orange-500/20">
                     <Trophy className="w-4 h-4 text-orange-500" />
