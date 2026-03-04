@@ -3,12 +3,14 @@ import { Bell, User, Trophy, X, Palette } from 'lucide-react';
 import { useStreak } from '../hooks/useStreak';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
+import { useGamificationContext } from '../context/GamificationContext';
 import clsx from 'clsx';
 
 const Topbar = () => {
     const { streak } = useStreak();
     const { theme, setTheme } = useTheme();
     const { user, userProfile } = useAuth();
+    const { level } = useGamificationContext();
     const [showNotifications, setShowNotifications] = useState(false);
     const [notifications, setNotifications] = useState([
         { id: 1, title: "Daily Quiz Ready", message: "Test your knowledge on today's topics!", time: "2m ago", unread: true },
@@ -99,7 +101,7 @@ const Topbar = () => {
                     </div>
                     <div>
                         <p className="text-sm font-bold text-text">{userProfile?.name || user?.email}</p>
-                        <p className="text-xs text-text-muted">Level {userProfile?.level || 1}</p>
+                        <p className="text-xs text-text-muted">Level {level}</p>
                     </div>
                 </div>
             </div>
